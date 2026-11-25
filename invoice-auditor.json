@@ -1,0 +1,423 @@
+{
+  "active": false,
+  "connections": {
+    "Upload Invoice": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Extract PDF Text",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Extract Invoice Data",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract Invoice Data": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Parse Invoice JSON",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parse Invoice JSON": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Check Maths",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Check Maths": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Agreed Price List",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Agreed Price List": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Check Prices",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Check Prices": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route Audit",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Audit": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Audit Summary",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Clean Summary",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Audit Summary": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build HTML Report",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Clean Summary": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build HTML Report",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build HTML Report": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond — Audit Report",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "Extract Invoice Data",
+            "type": "ai_languageModel"
+          },
+          {
+            "index": 0,
+            "node": "Audit Summary",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    }
+  },
+  "name": "AI Supplier Invoice Auditor",
+  "nodes": [
+    {
+      "id": "a76270e6-7104-4a2c-b15c-115b2cdfaad0",
+      "name": "README Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "color": 4,
+        "content": "## AI Supplier Invoice Auditor (demo: Spice House restaurant, supplier City Foods Wholesale)\nStaff uploads a supplier invoice PDF on a form - Groq extracts the line items, Code nodes check the maths and compare every price against the agreed price list, an AI agent writes a plain-language audit, and the workflow returns an HTML audit report document. No email/sheet step (no Google APIs on this VM). Digital PDFs only.",
+        "height": 280,
+        "width": 420
+      }
+    },
+    {
+      "id": "214bd2bf-601f-4d6e-8b3c-e97616e29ea0",
+      "name": "Upload Invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        320
+      ],
+      "notes": "POST a PDF here (multipart): restaurant_name + invoice_pdf.",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "invoice-audit",
+        "responseMode": "responseNode"
+      },
+      "webhookId": "ac146d77-cac5-4f4f-9602-2a1014890af6"
+    },
+    {
+      "id": "acb16f08-8202-4160-a6ff-5e0af858c1a4",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        320
+      ],
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "invoice_pdf"
+      }
+    },
+    {
+      "id": "39900b26-744f-47d4-9df4-54d33c150586",
+      "name": "Extract Invoice Data",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        320
+      ],
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"supplier\": {\"type\": \"string\", \"description\": \"Name of the supplier company\"}, \"invoiceNumber\": {\"type\": \"string\", \"description\": \"Invoice number as written\"}, \"invoiceDate\": {\"type\": \"string\", \"description\": \"Invoice date as written\"}, \"dueDate\": {\"type\": \"string\", \"description\": \"Payment due date as written\"}, \"lineItems\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"properties\": {\"item\": {\"type\": \"string\"}, \"quantity\": {\"type\": \"number\"}, \"unit\": {\"type\": \"string\"}, \"unitPrice\": {\"type\": \"number\"}, \"lineTotal\": {\"type\": \"number\"}}, \"required\": [\"item\", \"quantity\", \"unitPrice\", \"lineTotal\"]}}, \"subtotal\": {\"type\": \"number\"}, \"tax\": {\"type\": \"number\"}, \"grandTotal\": {\"type\": \"number\"}}, \"required\": [\"supplier\", \"invoiceNumber\", \"lineItems\", \"subtotal\", \"grandTotal\"]}",
+        "options": {
+          "systemPromptTemplate": "You are an invoice data extractor for a small restaurant. Read the supplier invoice text and extract the supplier name, invoice number, invoice date, due date, every line item (item name, quantity, unit, unit price, line total), subtotal, tax and grand total. Copy numbers exactly as written - never calculate or round them yourself."
+        }
+      }
+    },
+    {
+      "id": "1e666156-134a-47d6-a76a-f63aed0f5365",
+      "name": "Parse Invoice JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const raw = $json;\nlet inv = {};\nif (raw.lineItems && Array.isArray(raw.lineItems)) {\n  inv = raw;\n} else if (raw.output) {\n  if (typeof raw.output === 'object') {\n    inv = raw.output;\n  } else {\n    const s = raw.output.toString().trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n    try { inv = JSON.parse(s); } catch (e) { inv = {}; }\n  }\n}\nconst up = $('Upload Invoice').first().json;\nconst shop = ((up.body && up.body.restaurant_name) || 'Spice House').toString();\nconst num = (v) => { const n = parseFloat(String(v === undefined || v === null ? '' : v).replace(/[^0-9.\\-]/g, '')); return isNaN(n) ? 0 : n; };\nconst items = (inv.lineItems || []).map(li => ({\n  item: (li.item || '').toString(),\n  quantity: num(li.quantity),\n  unit: (li.unit || '').toString(),\n  unitPrice: num(li.unitPrice),\n  lineTotal: num(li.lineTotal)\n}));\nreturn [{ json: {\n  shop,\n  supplier: (inv.supplier || '').toString(),\n  invoiceNumber: (inv.invoiceNumber || '').toString(),\n  invoiceDate: (inv.invoiceDate || '').toString(),\n  dueDate: (inv.dueDate || '').toString(),\n  lineItems: items,\n  subtotal: num(inv.subtotal),\n  tax: num(inv.tax),\n  grandTotal: num(inv.grandTotal)\n} }];"
+      }
+    },
+    {
+      "id": "61c98519-c2f3-443f-90c6-ac590cd0a6d1",
+      "name": "Check Maths",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const v = $('Parse Invoice JSON').first().json;\nconst round2 = (n) => Math.round(n * 100) / 100;\nconst mathErrors = [];\nlet computedSubtotal = 0;\nconst lines = v.lineItems.map(li => {\n  const expected = round2(li.quantity * li.unitPrice);\n  computedSubtotal = round2(computedSubtotal + expected);\n  const diff = round2(expected - li.lineTotal);\n  if (Math.abs(diff) > 0.01) {\n    mathErrors.push({ item: li.item, expected, stated: li.lineTotal, difference: diff });\n  }\n  return { item: li.item, quantity: li.quantity, unit: li.unit, unitPrice: li.unitPrice, lineTotal: li.lineTotal, expectedLineTotal: expected, lineOk: Math.abs(diff) <= 0.01 };\n});\ncomputedSubtotal = round2(computedSubtotal);\nconst subDiff = round2(computedSubtotal - v.subtotal);\nif (Math.abs(subDiff) > 0.01) {\n  mathErrors.push({ item: 'SUBTOTAL', expected: computedSubtotal, stated: v.subtotal, difference: subDiff });\n}\nconst expectedGrand = round2(v.subtotal + v.tax);\nconst grandDiff = round2(expectedGrand - v.grandTotal);\nif (Math.abs(grandDiff) > 0.01) {\n  mathErrors.push({ item: 'GRAND TOTAL', expected: expectedGrand, stated: v.grandTotal, difference: grandDiff });\n}\nreturn [{ json: { shop: v.shop, supplier: v.supplier, invoiceNumber: v.invoiceNumber, invoiceDate: v.invoiceDate, dueDate: v.dueDate, lineItems: lines, subtotal: v.subtotal, tax: v.tax, grandTotal: v.grandTotal, computedSubtotal, mathErrors, mathOk: mathErrors.length === 0 } }];"
+      }
+    },
+    {
+      "id": "76b20396-a383-4418-9499-2126a902abe3",
+      "name": "Agreed Price List",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1300,
+        320
+      ],
+      "notes": "Agreed rates with City Foods Wholesale (per kg / per litre).",
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9a6503c0-eb7c-45e5-8637-d9d7f3d8d492",
+              "name": "priceList",
+              "type": "object",
+              "value": "{\"tomatoes\": 3.5, \"onions\": 1.2, \"potatoes\": 0.9, \"chicken breast\": 6.8, \"basmati rice\": 2.4, \"cooking oil\": 4.1, \"fresh chillies\": 2.9, \"garlic\": 3.1, \"ginger\": 4.6, \"lemons\": 1.8}"
+            }
+          ]
+        },
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "7c9de4f5-1d28-434c-8e43-766282a08f8a",
+      "name": "Check Prices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const m = $('Check Maths').first().json;\nconst priceList = $json.priceList || {};\nconst norm = (s) => (s || '').toString().toLowerCase().trim();\nconst seen = {};\nconst priceFlags = [];\nlet totalOvercharge = 0;\nconst mathErrors = m.mathErrors || [];\nconst lines = (m.lineItems || []).map(li => {\n  const key = norm(li.item);\n  const agreed = priceList[key];\n  let flag = null;\n  if (seen[key]) {\n    totalOvercharge = Math.round((totalOvercharge + li.lineTotal) * 100) / 100;\n    flag = { type: 'duplicate', item: li.item, note: 'Billed twice - this item appears ' + (seen[key] + 1) + ' times on the invoice', amount: li.lineTotal };\n    priceFlags.push(flag);\n  }\n  seen[key] = (seen[key] || 0) + 1;\n  if (agreed === undefined || agreed === null) {\n    flag = { type: 'no-rate', item: li.item, note: 'No agreed rate on file - this price cannot be verified', amount: 0 };\n    priceFlags.push(flag);\n  } else if (li.unitPrice > agreed) {\n    const over = Math.round((li.unitPrice - agreed) * li.quantity * 100) / 100;\n    totalOvercharge = Math.round((totalOvercharge + over) * 100) / 100;\n    flag = { type: 'overcharge', item: li.item, agreed, billed: li.unitPrice, quantity: li.quantity, amount: over };\n    priceFlags.push(flag);\n  }\n  return { item: li.item, quantity: li.quantity, unit: li.unit, unitPrice: li.unitPrice, lineTotal: li.lineTotal, expectedLineTotal: li.expectedLineTotal, lineOk: li.lineOk, agreed: (agreed !== undefined && agreed !== null) ? agreed : null, flag: flag ? flag.type : null };\n});\nconst hasIssues = mathErrors.length > 0 || priceFlags.length > 0;\nlet verdict = 'CLEAN';\nif (mathErrors.length > 0) verdict = 'MATH ERROR';\nelse if (totalOvercharge > 0) verdict = 'OVERCHARGED';\nelse if (priceFlags.length > 0) verdict = 'FLAGGED';\nreturn [{ json: { shop: m.shop, supplier: m.supplier, invoiceNumber: m.invoiceNumber, invoiceDate: m.invoiceDate, dueDate: m.dueDate, lineItems: lines, subtotal: m.subtotal, tax: m.tax, grandTotal: m.grandTotal, computedSubtotal: m.computedSubtotal, mathErrors: mathErrors, mathOk: m.mathOk, priceFlags, totalOvercharge, hasIssues, verdict } }];"
+      }
+    },
+    {
+      "id": "7f1bdf27-5bc7-49da-8a5f-38911936cbd2",
+      "name": "Route Audit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6df0142f-7d0f-4de2-b8f5-90138e9360c9",
+              "leftValue": "={{ $json.hasIssues }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "ac5de129-e8e6-4fe3-bae6-c4759598f3e7",
+      "name": "Audit Summary",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2080,
+        160
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ '<context>Spice House is a small restaurant. City Foods Wholesale sent invoice ' + $json.invoiceNumber + ' dated ' + $json.invoiceDate + '.</context><task>Write a plain-language audit summary for the restaurant owner.</task><input>Supplier: ' + $json.supplier + '. Invoice total: $' + $json.grandTotal + '. Verdict: ' + $json.verdict + '. Total overcharge found: $' + $json.totalOvercharge + '. Maths errors: ' + JSON.stringify($json.mathErrors) + '. Price flags: ' + JSON.stringify($json.priceFlags) + '.</input><format>3-5 short bullet lines, plain English, no jargon. Say what was overcharged and by how much, what to dispute with the supplier, and what to check next time.</format><rules>Use ONLY the numbers in the input. Never invent an item, a price, or a date. Under 120 words. Return only the summary text, no JSON, no markdown headings.</rules>' }}",
+        "options": {
+          "systemMessage": "You are an invoice auditor for a small restaurant. The owner wants a plain-language summary of what is wrong with a supplier invoice. Write 3-5 short bullet lines: what was overcharged and by how much, what to dispute with the supplier, and what to check next time. Use ONLY the facts and numbers given - never invent an item, a price, or a date. Under 120 words. Return only the summary text, no JSON, no markdown headings."
+        }
+      }
+    },
+    {
+      "id": "0a70b1a0-d550-45c6-81a0-b4ad13afe127",
+      "name": "Clean Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2080,
+        480
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2a8da03e-65aa-42f1-9d95-450eb64c3d17",
+              "name": "output",
+              "type": "string",
+              "value": "No issues found. Every line total matches quantity x unit price, the subtotal and grand total add up, and every item was billed at the agreed rate. Nothing to dispute on this invoice."
+            }
+          ]
+        },
+        "include": "all",
+        "options": {}
+      }
+    },
+    {
+      "id": "a270a7b5-fd91-4aff-b010-9be0987736d4",
+      "name": "Build HTML Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const v = $('Check Prices').first().json;\nconst summary = ($json.output || '').toString();\nconst esc = (s) => String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst money = (n) => '$' + Number(n || 0).toFixed(2);\nconst banner = {\n  'CLEAN': ['CLEAN - nothing to dispute', '#15803d', '#dcfce7'],\n  'OVERCHARGED': ['OVERCHARGED - ' + money(v.totalOvercharge), '#b91c1c', '#fee2e2'],\n  'MATH ERROR': ['MATH ERROR - totals do not add up', '#b45309', '#fef3c7'],\n  'FLAGGED': ['FLAGGED - needs a human check', '#6b21a8', '#f3e8ff']\n}[v.verdict] || ['AUDITED', '#334155', '#e2e8f0'];\nconst rows = (v.lineItems || []).map(li => {\n  const flag = li.flag === 'overcharge' ? 'OVERCHARGED' : li.flag === 'duplicate' ? 'BILLED TWICE' : li.flag === 'no-rate' ? 'NO AGREED RATE' : (!li.lineOk ? 'MATH ERROR' : '');\n  return '<tr><td>' + esc(li.item) + '</td><td>' + li.quantity + ' ' + esc(li.unit) + '</td><td>' + money(li.unitPrice) + '</td><td>' + money(li.lineTotal) + '</td><td>' + (li.agreed !== null && li.agreed !== undefined ? money(li.agreed) : '-') + '</td><td>' + flag + '</td></tr>';\n}).join('');\nconst flags = (v.priceFlags || []).concat((v.mathErrors || []).map(e => ({ type: 'math', item: e.item, note: 'Expected ' + money(e.expected) + ', stated ' + money(e.stated) + ' (difference ' + money(e.difference) + ')', amount: e.difference })));\nconst flagList = flags.length ? flags.map(f => '<li><b>' + esc(f.item) + ':</b> ' + esc(f.note || (f.type + ' - ' + money(f.amount))) + '</li>').join('') : '<li>None - every line checked out.</li>';\nconst html = '<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Invoice Audit - ' + esc(v.invoiceNumber) + '</title><style>body{font-family:Arial,sans-serif;background:#f1f5f9;margin:0;padding:24px;color:#0f172a}.card{max-width:760px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.08)}h1{margin:0 0 4px;font-size:22px}.sub{color:#64748b;margin:0 0 16px}.banner{border-radius:8px;padding:12px 16px;font-weight:700;font-size:17px;color:' + banner[1] + ';background:' + banner[2] + ';margin-bottom:16px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border-bottom:1px solid #e2e8f0;padding:8px 6px;text-align:left;font-size:14px}th{color:#64748b;font-size:12px;text-transform:uppercase}.totals{text-align:right;font-size:15px;line-height:1.7}.totals b{font-size:17px}h2{font-size:16px;margin:20px 0 6px}ul{margin:6px 0;padding-left:20px;line-height:1.6}.foot{color:#94a3b8;font-size:12px;margin-top:20px}</style></head><body><div class=\"card\"><h1>Supplier Invoice Audit</h1><p class=\"sub\">' + esc(v.shop) + ' &middot; Supplier: ' + esc(v.supplier) + ' &middot; Invoice ' + esc(v.invoiceNumber) + ' &middot; ' + esc(v.invoiceDate) + ' &middot; Due ' + esc(v.dueDate) + '</p><div class=\"banner\">' + banner[0] + '</div><table><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Line total</th><th>Agreed rate</th><th>Flag</th></tr>' + rows + '</table><div class=\"totals\">Subtotal: ' + money(v.subtotal) + '<br>Tax: ' + money(v.tax) + '<br><b>Grand total: ' + money(v.grandTotal) + '</b><br>Total overcharge found: <b>' + money(v.totalOvercharge) + '</b></div><h2>Findings</h2><p>' + esc(summary).replace(/\\n/g, '<br>') + '</p><h2>What to check</h2><ul>' + flagList + '</ul><p class=\"foot\">Audit by AI Supplier Invoice Auditor - digital PDF invoices only.</p></div></body></html>';\nreturn [{ json: { html, verdict: v.verdict, invoiceNumber: v.invoiceNumber, totalOvercharge: v.totalOvercharge } }];"
+      }
+    },
+    {
+      "id": "3057bd05-ba31-45b9-b2b4-a7ea00b642c6",
+      "name": "Respond — Audit Report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        320
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "67c65d6c-5e76-42da-b1da-99b5faf73f46",
+      "name": "Groq Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        80
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "7JX1ltl0qs1xrSEY",
+          "name": "Groq account"
+        }
+      },
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "temperature": 0.3,
+          "maxTokensToSample": 8000
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
